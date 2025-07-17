@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page (Vulnerable to SQL Injection)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3, h4 {
+            color: #333;
+        }
+        form {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input[type="submit"] {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background: #45a049;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+        .exploit-examples {
+            margin-top: 30px;
+            padding: 15px;
+            background: #fff8e1;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Login Page</h1>
+        <p>This page demonstrates a SQL injection vulnerability.</p>
+        
+        <form method="GET" action="">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+            
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            
+            <input type="submit" value="Login">
+        </form>
+
+        <?php
+        // Connect to database
+        $conn = new mysqli('localhost', 'root', '', 'simple_crud');
+
+        if (isset($_GET['username']) && isset($_GET['password'])) {
+            $username = $_GET['username'];
+            $password = $_GET['password'];
+
+            // ❌ Vulnerable to SQL Injection
+            $sql = "SELECT * FROM users WHERE name = '$username' AND password = '$password'";
+            echo "<script>console.log(\"SQL Query: " . addslashes($sql) . "\");</script>";
+            $result = mysqli_query($conn, $sql);
+
+            if (mysqli_num_rows($result) > 0) {
+                echo "<div class='success'><h3>✅ Logged in successfully!</h3>";
+                echo "<h4>User Details:</h4>";
+
+                // Loop through all matching users
+                while ($user = mysqli_fetch_assoc($result)) {
+                    echo "<ul>";
+                    // Display all user fields
+                    foreach ($user as $key => $value) {
+                        echo "<li><strong>$key:</strong> $value</li>";
+                    }
+                    echo "</ul><hr>";
+                }
+                echo "</div>";
+            } else {
+                echo "<div class='error'><h3>❌ Invalid login!</h3></div>";
+            }
+        }
+        ?>
+
+        <div class="exploit-examples">
+            <h2>SQL Injection Examples</h2>
+            <p>Try these in the username field (leave password blank or use anything):</p>
+            <ul>
+                <li><strong>Basic bypass:</strong> <code>' OR '1'='1</code></li>
+                <li><strong>Get all users:</strong> <code>' OR 1=1 -- </code></li>
+                <li><strong>Get specific user:</strong> <code>' OR name='admin' -- </code></li>
+                <li><strong>Comment out password check:</strong> <code>admin' -- </code></li>
+                <li><strong>Union attack (if you know table structure):</strong> <code>' UNION SELECT 1, 'hacked', 'data', 'injected' -- </code></li>
+            </ul>
+            <p>These examples demonstrate how attackers can bypass authentication or extract data.</p>
+        </div>
+
+        <h2>How to Fix This</h2>
+        <p>To prevent SQL injection:</p>
+        <ol>
+            <li>Use prepared statements with parameterized queries</li>
+            <li>Never concatenate user input directly into SQL queries</li>
+            <li>Use PHP's PDO or mysqli with prepared statements</li>
+            <li>Implement proper input validation</li>
+        </ol>
+        <p>Example of a secure version:</p>
+        <pre>
+$stmt = $conn->prepare("SELECT * FROM users WHERE name = ? AND password = ?");
+$stmt->bind_param("ss", $username, $password);
+$stmt->execute();
+$result = $stmt->get_result();
+        </pre>
+    </div>
+</body>
+</html>
